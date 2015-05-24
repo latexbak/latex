@@ -3,7 +3,7 @@
 \usepackage[hmargin=.75in,vmargin=1in]{geometry}
 \usepackage[american]{babel}
 \usepackage[T1]{fontenc}
-\usepackage{graphicx}
+\usepackage{graphicx111}
 \usepackage{times}
 \usepackage{caption}
 \usepackage{multirow}
