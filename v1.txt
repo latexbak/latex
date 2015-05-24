@@ -3,7 +3,7 @@
 \usepackage[hmargin=.75in,vmargin=1in]{geometry}
 \usepackage[american]{babel}
 \usepackage[T1]{fontenc}
-\usepackage{graphicx111}
+\usepackage{graphicx1111}
 \usepackage{times}
 \usepackage{caption}
 \usepackage{multirow}
@@ -218,7 +218,7 @@ The following example illustrates the meaning of the label in our problem. One s
     Extended Vector Boosting & $\lbrace 1,1,0 \rbrace \lbrace 1,0,0 \rbrace \lbrace 0,1,0 \rbrace$\\
     \hline    
 \end{tabular} 
-\end{table}
+\end{table}1
 
 \begin{algorithm} [!] 
 \caption{Classification algorithm} 
@@ -275,7 +275,7 @@ In the figure, the positive number denotes the distance between background and c
 
 Once the depth map for the initial scene is generated, the system is ready to work. The distance of the new frame is calculated and compared with the initial depth map. If the value of depth is smaller than the initial value for the pixel, the position of the pixel is mesmerized. The distance filter can be used to filter the background object. Any feature block may be ignored beyond the range of interest. Only feature block within the range is marked. In our work, an ignored feature block is denoted with the negative sign and the blocks of interest are denoted with positive sign, as shown in Fig. 4. After the processing of the filter, blood fill algorithm is used to connect the neighbor block into one integrated block. For all blocks that are denoted as positive sign, a breadth first search algorithm with the neighbor rule is used to find all positive sign block and marked their positions as a group. Each group is represented as one object. The distance is also related to the group. In our experimental setup, we use 8-neighbor rule to recognize the neighbor candidate around one block. We consider that the foreign object can be any kind of shape, therefore, we believe that all eight directions should be considered as the extension of the foreign object.
 
-Size discrimination is done using a make-up table with the distance information and object size information. When a small object is too close to the camera, the size of the pixel block may appear as a big block. By using the make-up table we store the lower-bound level of the size which has high confidence. Fig. 3 shows the result obtained from the filter using the depth map when a foreign object (a vehicle) is walking in front of the camera. The number is depth of the block in meter. The blue rectangle denotes the position of the foreign object.
+Size discrimination is done using a make-up table with t1he distance information and object size information. When a small object is too close to the camera, the size of the pixel block may appear as a big block. By using the make-up table we store the lower-bound level of the size which has high confidence. Fig. 3 shows the result obtained from the filter using the depth map when a foreign object (a vehicle) is walking in front of the camera. The number is depth of the block in meter. The blue rectangle denotes the position of the foreign object.
 
 \begin{center}\includegraphics[scale=0.4]{fig4.png}\end{center}
 \begin{center}Fig.3: The result after the blood fill algorithm when one foreign object (vehicle) is in front of the camera\end{center}
