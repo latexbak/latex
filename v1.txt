@@ -1,0 +1,384 @@
+\documentclass[conference]{worldcomp}
+
+\usepackage[hmargin=.75in,vmargin=1in]{geometry}
+\usepackage[american]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{times}
+\usepackage{caption}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+
+%%% Class name, option, and packages above are mandatory for generating an appropriate format 
+%%% suitable for the WorldComp style. Therefore, do not make any changes unless you know 
+%%% what you are doing.
+%%% However, if you need to use the subfig package, you must call it BEFORE the caption package.
+%%% (NOTE: the subfig package probably will work but has not been tested.)
+
+%%% The worldcomp.cls is derived (in a quite dirty and quick manner) from the IEEEtrans.cls.
+%%% At least the following packages are incompatible with the worldcomp.cls:
+%%% <DO NOT USE THEM> setspace, titlesec, amsthm
+%%% There may be more, so if you use a package that produces a lot of errors or weird results, 
+%%% be advised to avoid that package.
+
+%%% Below packages are recommended to use for better results and compatible with the worldcomp.cls
+\usepackage{textcomp}
+\usepackage{epsfig,graphicx}
+\usepackage{xcolor}
+\usepackage{amsfonts,amsmath,amssymb}
+\usepackage{fixltx2e} % Fixing numbering problem when using figure/table* 
+\usepackage{booktabs}
+
+%%% Below packages are probably useful for some table-formatting purposes. Compatibility is not yet
+%%% tested but probably fine.
+%\usepackage{tabularx}
+%\usepackage{tabulary}
+
+%%% Using the hyperref package is not really necessary for conference papers, but if your paper includes
+%%% a lot of URLs, and you wish them to be line-breakable, it might be useful.  When you need to use the
+%%% hyperref package, make sure you set <colorlinks option> = true and all link colors black as shown in
+%%% the sample below (the sample calls the ifpdf package, too).
+%\usepackage{ifpdf} 
+%\ifpdf
+%\usepackage[pdftex,naturalnames,breaklinks=true,colorlinks=true,linkcolor=black,citecolor=black,filecolor=black,menucolor=black,urlcolor=black]{hyperref}
+%\else
+%\usepackage[dvips,naturalnames,breaklinks=true]{hyperref}
+%\fi
+
+\columnsep 6mm  %%% DO NOT CHANGE THIS
+
+
+\title{\bf Foreign object detection using multi-class classifier with single camera vs. distance map with two cameras}           %%%% Replace with your title.
+
+%%%% Replace the author and institution/affiliation names. 
+%%%% Make sure the author names are boldface.
+\author{
+{\bfseries Haoyuan Lin, Arun Somani, and Raj Aggarwal}\\
+Department of Electrical and Computer Engineering, Iowa State University, Ames, Iowa, USA\\
+}
+
+\begin{document}
+
+
+\maketitle                        %%%% To set Title and Author names.
+
+
+\begin{abstract}%%%% Replace with your abstract.
+The robust detection of a variety of foreign objects is a requirement for many applications needing safety and security. Examples of such systems include advanced driver assistant system, intelligent robot, etc. Most state-of-art detectors focus on one type or one class of objects. To the best of our knowledge, there is no single solution that focuses on a set of multiple foreign objects detection in an integrated manner. In some cases, multiple detectors can operate simultaneously to detect objects of interest in a given input. This is not efficient. Many different categories of objects can be claimed as foreign object in one ensemble positive class.
+
+One goal of our research is to focus on detection of a set of objects identified as objects of interest in an integrated and efficient manner. We design a multi-class classifier. Our approach is to use a coarse-to-fine strategy in which we divide the complicated space into finer and finer sub-spaces. For this purpose, data-driven clustering algorithm is implemented to develop an extended vector boosting algorithm to train our classifier. Our approach is highly effective and yield good performance to detect the objects of interest.
+
+Beyond detecting foreign object by using multi-class classifier, we design a foreign object detection framework. Our approach is to use stereo matching algorithm to get the disparity information based on intensity images from stereo cameras and using the camera model to retrieve the distance information. For the purpose of detecting blocks of interest (BOI), we use flood fill method along with noise suppression method to combine adjacent blocks with higher confidence level. The detection framework has been proved to be efficient and robust using many experiments.
+\end{abstract}
+
+\vspace{1em}
+\noindent\textbf{Keywords:}
+ {\small  foreign object detection, cluster, vector boosting, stereo cameras, depth map} %%%% Replace with your keywords
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\section{Introduction}
+Most object detection research focuses on how to design both accurate and fast detector for one particular class of objects \cite{mybib:dalal2005histograms}, \cite{mybib:tang2012detection}, \cite{mybib:ding2012contextual}. In order to detect multiple classes of objects, multiple detectors are deployed simultaneously, each detecting the respective object for a given input. This is not efficient. On the other hand, many applications do not care about the categories of the objects.
+
+Detecting object but not necessarily classify them may be a requirement for many safety applications. This classification step can be considered as redundant for the system. In other applications, the most useful first information is whether any of the objects is present or not. If it does, the location and size may be of secondary interest.
+
+We consider object of interest as foreign objects which can be classified in one ensemble positive class. The merit of this method is to consider the similarity among all objects in that category at the same time. A similar feature can be used and shared in ensemble positive class. Foreign object can be of any arbitrary shape with certain volume in a specified range. Based on the experiments, we observe that the deformation of objects may degrade the performance of such detectors. In our work, we consider using two cameras to generate distance map and find blocks with certain sizes to detect the objects of interest. The merit of this method is to consider these foreign objects as a block with certain areas and not to consider which categories they belong to.
+
+\subsection{Problem statement}
+The problem in this paper is defined as given an area of interest and a class of objects with a lower bound on the foreign object area, design a framework and algorithm to detect the presence or absence of foreign object and their possible locations.
+\section{Background}
+Object detection is a fundamental problem in computer vision which has seen a great progress in both performance and detection speed in the last few years \cite{mybib:dollar2012pedestrian}. For example, pedestrian protection system (implemented in the advanced driver assistant system) and intelligent robot that can follow specified target are two good examples of such applications. A common approach used is to train a detector using both positive and negative samples deploying machine learning method. Using Haar-like feature \cite{mybib:papageorgiou2000trainable} as attributes can describe the object well in the face detection problem.
+
+\subsection{Multi-classifier}
+To achieve our goal, an efficient method is to decompose the detection of foreign object detection task into a multi-classifier task. The idea is to use several categories of objects such as pedestrian, vehicle or animal to cover the most common foreign objects. Haar-like feature \cite{mybib:papageorgiou2000trainable} considers the difference between adjacent rectangular regions at a specific location as a vector. Haar-like feature has been proved to be efficient with human face, however, Haar-like feature cannot perform well when the background is clustered or the training samples are not well aligned.
+
+Histogram of oriented gradients (HOG) \cite{mybib:dalal2005histograms} is using edge orientation histogram to describe the shape of the object. Algorithm using HOG feature was developed \cite{mybib:dalal2005histograms} and used to boost the performance for object detection. HOG feature algorithm uses statistical method which can tolerate the mis-position and deformation of sample variation.
+
+Based on the deformable part model (DPM) \cite{mybib:felzenszwalb2010object}, the detection task can be modeled as an optimization problem. The objective function is to obtain maximization when searching for all potential object parts with several partial templates put together. The claim is that DPM have achieved the level of human recognition if the HOG feature is used as the description of the pictures.
+
+Support vector machine (SVM) \cite{mybib:joachims2002learning} is the statistic method to find an optimal separating hyper-plane to solve the pattern recognition problems. Boosting algorithm is another very powerful learning algorithm which combines several weak classifiers into a strong classifier. Compared to SVM , boosting algorithm chooses a small amount of representative features to construct the detector instead of all features as is the case for SVM.
+
+Real AdaBoost \cite{mybib:schapire1999improved} also has been proposed to handle multi-class multi-label problems. Vector boosting \cite{mybib:huang2005vector} is proposed to extend the output of the Real AdaBoost from scalar to vector which allows one sample to be assigned into several classes.
+
+\subsection{3D reconstruction}
+The goal of stereo vision is mainly to recover the 3D structure of a scene using two or more images from the 3D scene, each image acquired from a different viewpoint in space. With a set of well configured cameras, disparity, which means the distance between the two corresponding points, can be calculated. The difference is calculated by finding the corresponding points in the two frames which have a similar feature. One method to calculate the disparity is using the feature matching \cite{mybib:izadi2011kinectfusion}. A reliable feature is an edge feature. In this method, an edge feature is derived from both the left and right images by filtering the images. Each image in the stereo pair is filtered by using Gaussian filters and then the algorithm computes the edge. Next the features are matched for the most similar ones by comparing their orientations and strength. In the disparity map, the value is the distance between the pixels which has the highest match score. A disparity map is formed using the disparities of all points.
+
+\section{Our Approach}
+For object detection with multiple categories of objects, we use a divide-and-conquer strategy, which is often used in computer science. Our detector is based on a tree-structure which can be easily adopted for a coarse-to-fine strategy to handle multiple category objects. Each node uses a cluster algorithm to split the data into several clusters before training the classifier. Since different categories of objects can also be similar in certain part, several different categories of objects can be held at one node in the tree. Each node in the tree is a strong classifier that puts emphasis on the diversities among these clusters.
+\subsection{Clustering algorithm}
+In this paper, we use vector-space model to represent clustering algorithm. Clustering algorithm is an iterative process. The goal of clustering algorithm is to maximize the similarity within each cluster and minimize the similarity between any two clusters. Under this criterion, we consider not only the single cluster, but also the relationship between any two clusters and the whole picture.
+
+Assume there are k clusters. We denote $i_{th}$ cluster as $C_i \quad i=1, 2, ... k$ Let $n_i$ be the number of samples in $C_i$. Each sample $x_i$ is a matrix of pixel value. The feature of each sample $x_i$ is considered as one vector as $\varphi (x_i)$ using feature extraction algorithm on each sample. The function of $\varphi()$ is to map from a set of pixel values to a vector of feature values. An example is shown in Fig. 1.
+
+\begin{center}\includegraphics[scale=0.3]{fig2.png}\end{center}
+
+\begin{center}Fig.1: Schematic diagram depicting multiple clusters and their center\end{center}
+
+The similarity between two samples x and y using Euclidean distance is defined as $$\parallel \varphi (x)-\varphi (y) \parallel ^2$$
+Based on this definition, the similarity of cluster $C_i$ is defined as the average sum of relative distances among all sample points in $C_i$ to $A_i$ which denotes as the center of $C_i$ $$s_{1i}=\sum\limits_{x\in C_i} \parallel \varphi (x)-\varphi (A_i) \parallel ^2 $$
+
+The similarity is defined as the sum of relative distances from the center of each cluster to the center of all other clusters. Since the size of each cluster is not the same, therefore the contribution of each cluster is weighted by its size as follows.
+$$s_{2i}=n_i \parallel \varphi (A_i)-\varphi (A) \parallel ^2 $$
+Here A is the center of the all samples.
+
+In order to evaluate the quality of clustering, the score $s$ is defined by
+$$s=\frac{s_1}{s_2}=\frac{\sum\limits_{i=1}^{k}{s_{1i}}}{\sum\limits_{j=1}^{k}{s_{2j}}}$$
+Where $s_1$ denotes the sample similarity in that cluster, and $s_2$ denotes the similarity among any two clusters. The goal of cluster algorithm is to maximize the score $s$.
+
+Not all features extracted from samples are suitable to be used for clustering. The classification power of features can be measured by $Z$ value which is defined as follow.
+$$Z=2\sum\limits_{j}\sqrt{W_+^j W_-^j}$$
+We define the object of interest as positive samples and foreign objects as negative samples. $W_+$ is the sum of weights for positive samples and $W_-$ is the sum of weights for negative samples. $Z$ has small value implies that the classification power of the feature is more discriminating. With the help of $Z$ value, a threshold is set to determine if the features selected by boosting is close to saturation. If so, that is the point of which the boosting algorithm should stop, otherwise clustering algorithm should be called to split the samples into more clusters. The results of the boosting algorithm are a set of features which are selected to construct a strong classifier in the node. At the same time, these features are also used by clustering algorithm to prepare the samples for the next level node.
+
+Since the background of samples can be seen as noise compared to the target, some samples may not be assigned to a representative cluster due to the noise. This will produce bias in the result of the cluster algorithm and will cause worse and worse effects in the subsequent stages. In the next step the boosting algorithm will make biased decision since it is asked to use the most representative feature to train a classifier. We set a safe barrier that can tolerate this effect from the cluster. Also some examples could be assigned to multiple clusters when they are on the cluster edge and close to other clusters. This is a modification of the original cluster algorithm.
+
+\begin{algorithm} [!] 
+\caption{Clustering algorithm} 
+\label{alg:A}  
+\begin{algorithmic} [1]
+\REQUIRE ~~\\
+The sample set $S$=$\lbrace\vec x_1,...\vec x_N\rbrace$\\
+The maximum cluster number $K$\\
+The overlap parameter $b$
+\ENSURE ~~\\
+The cluster set $W$=$\lbrace\vec w_1,...\vec w_k\rbrace$\\
+\FOR{$k\leftarrow$2 to $K$}
+\STATE $flag\leftarrow false$
+\STATE $score\leftarrow 0$
+\STATE $\lbrace s_1,...s_k \rbrace \leftarrow$ $SelectRandomSeeds$($\lbrace\vec x_1,...\vec x_N\rbrace$, $k$)
+
+\FOR{$i\leftarrow$1 to $k$}
+\STATE $\vec \mu_i\leftarrow \vec x_i$
+\STATE $\vec w_i \leftarrow \lbrace\rbrace$
+\ENDFOR
+
+\FOR{$i\leftarrow$ 1 to $N$}
+\STATE $j\leftarrow\underset{jj}{\operatorname{argmin}\Vert \vec x_{jj}-\vec \mu_i\Vert}$
+\STATE $\vec w_j \leftarrow \vec w_j \cup \vec x_i$
+\ENDFOR
+
+\STATE $score\leftarrow$ $CalculateScore$ $\left(\lbrace \vec w_1,...\vec w_k \rbrace \right)$
+
+\REPEAT
+\FOR{i$\leftarrow$1 to $N$}
+\STATE $c_i\leftarrow$ $GetClusterName$($\vec x_i$)
+\STATE $\vec w_{ci} \leftarrow \vec w_{ci}-\vec x_i$
+\STATE $\left[ s, mi\right] \leftarrow FindMaxScore\left(\lbrace w_1,...w_k \rbrace, \vec x_i \right)$
+\IF{$s$ $>$ $score$}
+\STATE $flag\leftarrow true$
+\STATE $\vec w_{mi}\leftarrow\vec w_{mi} \cup \vec x_i$
+\ELSE
+\STATE $\vec w_{ci}\leftarrow\vec w_{ci} \cup \vec x_i$
+\ENDIF
+\ENDFOR
+\UNTIL $flag$
+\FOR{$i$ $\leftarrow$ 1 to $k$}
+\STATE $d_{i}$ $\leftarrow$ $b$ * $CalculateClusterDiameter$ $\left(\vec w_{i}\right)$
+\STATE $\vec c_{i}$ $\leftarrow$  $CalculateClusterCenter$ $\left(\vec w_{i}\right)$
+\ENDFOR
+
+\FOR{$i\leftarrow$1 to $k$}
+\STATE $\vec w_i \leftarrow \lbrace\rbrace$
+\ENDFOR
+
+\FOR{$i$ $\leftarrow$ 1 to $N$}
+\FOR{$j$ $\leftarrow$ 1 to $k$}
+\IF {$\Vert \vec x_i-\vec c_j\Vert$ $<$ $d_j$}
+\STATE $\vec w_j \leftarrow \vec w_j \cup \vec x_i$
+\ENDIF
+\ENDFOR
+\ENDFOR
+\ENDFOR
+\end{algorithmic}  
+\end{algorithm}  
+
+\subsection{Classification algorithm}
+Real AdaBoost has been proposed to handle multi-class multi-label problems. Multi-class problem is to classify instance into more than two classes instead of only positive class and negative class. Multi-label problem is that each instance could be assigned to more than one class. The idea of Real AdaBoost method is to make each class orthogonal and consider each label independently so that this problem can be converted into original binary classification problem. One prediction is considered as correct if and only if all class label of the instance is predicted correctly. However, this condition is not tenable since some attributions are independent.
+
+Vector boosting [11] is proposed to extend the output of the Real AdaBoost from scalar to vector which allows that one sample may be assigned into several classes. The difference is that Real AdaBoost converts multi-label problem to several binary classification problem while vector boosting algorithm consider all labels for one instance together. Vector boosting algorithm modifies the sample weight redistribution formula using vector dot production which can avoid some independent status. For example, there are three classes {horse, deer, human}. The label of horse is $\lbrace 1,0,0 \rbrace$, deer is $\lbrace 0,1,0 \rbrace$, and human is $\lbrace 0,0,1 \rbrace$. One sample is clustered as $\lbrace 1,1,0 \rbrace$ which means it is like horse and deer and may be any of them (the horse may look like a deer from a distance). In Real AdaBoost, classifier output of $\lbrace 1,1,0 \rbrace$ is considered as the only right estimation. However, in vector boosting, classifier outputs $\lbrace 1,1,1 \rbrace$ is also considered as right estimation as the third attribute is independent of the other two. Real AdaBoost is suitable for problems in which the label of sample is absolutely with no ambiguity while vector boosting algorithm allows ambiguity to be handled. Evaluating all attributes together is the merit of vector boosting algorithm.
+
+In our problem, we use a label denoted as either 0 or 1 for each cluster. A label of value 0 means the sample does not belong to the cluster. A label of value 1 means the sample may belong to the cluster. Label 0 means the instance is not in this class which is the same meaning in Real AdaBoost. When the number of label 1 in one instance is one, the meaning is the same as in Real AdaBoost. When the number of label 1 in one instance is more than one, the instance could be in any class of these labels but cannot be in those classes which the label is 0. The label meaning is determined by our clustering algorithm. So Real AdaBoost and vector boosting algorithm cannot work for our problem.
+
+The following example illustrates the meaning of the label in our problem. One sample is in the area safe barrier between class 1 and class 2. The sample is clustered as class 1 and class 2. The real label should be $\lbrace 1,1,0 \rbrace$. The correct prediction of the Real Adaboost is $\lbrace 1,1,0 \rbrace$ since all class label of the instance should predicted correctly. The correct predictions of the vector boosting are $\lbrace 1,1,0 \rbrace$, $\lbrace 1,1,1 \rbrace$ since the labels of the first two classes are correct and the label of last class is independent of the other two. The correct predictions of the extended vector boosting are $\lbrace 1,1,0 \rbrace$, $\lbrace 1,0,0 \rbrace$, $\lbrace 0,1,0 \rbrace$ since any label of the first two classes is correct and the label of the last class is 0. The difference is shown is Table~\ref{tab:correct pred}. The algorithm pseudo code is shown in the right.
+
+\begin{table}[htb]\centering
+\caption{Correct predictions with different boosting algorithm.}\label{tab:correct pred}
+\begin{tabular}{|c|c|} 
+    \hline 
+    Real label & $\lbrace 1,1,0 \rbrace$\\ 
+    \hline 
+    Real Adaboost & $\lbrace 1,1,0 \rbrace$\\ 
+    \hline
+    Vector Boosting & $\lbrace 1,1,0 \rbrace \lbrace 1,1,1 \rbrace$\\
+    \hline
+    Extended Vector Boosting & $\lbrace 1,1,0 \rbrace \lbrace 1,0,0 \rbrace \lbrace 0,1,0 \rbrace$\\
+    \hline    
+\end{tabular} 
+\end{table}
+
+\begin{algorithm} [!] 
+\caption{Classification algorithm} 
+\label{alg:A}  
+\begin{algorithmic} [1]
+\REQUIRE ~~\\
+The sample set $S$=$\lbrace \left( \vec x_1, \vec v_1 \right), ...,\left( \vec x_N, \vec v_N \right) \rbrace$
+where $\vec v_i$ is got by our proposed cluster algorithm
+\STATE Initialize the sample weight as $D_1(i)=1/N$
+\FOR{$t=1,...,T$}
+\STATE Under the updated sample weight, train a weak classifier $h_t(x)$
+\STATE Update the sample weight\\$D_{t+1}(i)=\frac{D_t(i)exp[v_i \otimes h_t(x_i)]}{Z_t}$\\where $Z_t$ is a normalization factor to make $D_{t+1}(i)$ a distribution
+\STATE The final strong classifier $H(x)=\sum_{t=1}^{T}h_t(x)$
+\ENDFOR
+\end{algorithmic}  
+\end{algorithm}
+\subsection{Foreign object detection system framework}
+For foreign object detection with any shape, it is necessary to find a certain stable pattern for the foreign object. The basic idea behind our method is that the distance between cameras and any part of one object are much more similar than other objects. Disparity map [13], [14] is widely used in the computer vision area to recover the 3D structure of a scene using two or more images of the 3D scene, each acquired from a different viewpoint in space. In order to reconstruct the 3D structure, depth information for each pixel has to be calculated in the disparity map. We borrow and use the idea of disparity map here.
+
+We use stereo vision to address the problem in hand. The two camera model is shown in Fig. 2. The parameters used in this paper are shown in Table~\ref{tab:camera para}.
+
+\begin{table}[htb]\centering
+\caption{Parameters of the camera model.}\label{tab:camera para}
+\begin{tabular}{|c|c|c|c|} 
+    \hline 
+    Distance between the two cameras & $T$\\ 
+    \hline 
+    Focus length of the cameras & $f$\\ 
+    \hline
+    Distance between target and camera & $Z$\\
+    \hline
+    Position of middle point of camera film & $c$\\
+    \hline
+    Position of object in camera file & $x$\\
+    \hline
+    Disparity of the target & $d$\\
+    \hline
+    Displacement between target and camera & $X$\\
+    \hline
+\end{tabular}
+\end{table} 
+\begin{center}\includegraphics[scale=0.5]{fig1.png}\end{center}
+
+\begin{center}Fig.2: The structure of FOD\end{center}
+In Fig. 2, based on the triangulation principle, we have $\frac{x_l}{X_l}=\frac{f}{Z}$ and $\frac{x_r}{X_r}=\frac{f}{Z}$. Manipulation of these equations give us $X_l=\frac{Z}{f}x_1$ and $X_r=\frac{Z}{f}x_r$.
+Also $X_l+X_r=T$. Therefore, $\frac{Z}{f}(x_l+x_r)=T$ where $x_l+x_r$ is the disparity $d$. Then the distance between target and camera is given by $Z=\frac{Tf}{d}$.
+
+We assume that the left camera and right camera are with the same configuration and well calibrated. The pointing direction of the both cameras is the same. We can use the ground line as the reference. The calibration step is offline and is needed only once, before the system begins to work.
+
+Since the distance similarity is the only clue for detecting object. The depth map is an important resource in the algorithm. In order to make the distance calculation robust, the area of each frame is divided into sets of blocks instead of each pixel. The calculation of the disparity also uses the feature matching. Edge feature within a block in the left frame can be used as the pattern to search in the right frame. For the purpose of the foreign object detection task instead of 3D construction, the depth calculation is calculated coarsely. If the area of the block is too small, holes will be seen in the depth map. If the area of the block is too big, the object may not be detected especially when the object is far away from the camera.
+
+
+In the figure, the positive number denotes the distance between background and camera in meters. The negative value has two meanings. One is that there is no matching block from the left camera frame to the right camera frame. This is because the views of the left and right cameras are different. A part of the area which can be captured by the left camera may not be captured by the right camera. Since we use the block of feature in the left camera to find a match to the right camera, the distance along the left vertical line is negative. The second reason is that the distance is too far. The disparity for such block may be zero since the feature block appears to be the same when watching from a distance. The area in the sky is too far and the feature block looks the same at such distance. The two cases do not create any problem to the solution since the object is either too far or at the edge of the scene may not be in the area of interest. If the edge side of the scene seems like a problem, then another lens or camera configuration must be used to solve the problem.
+
+Once the depth map for the initial scene is generated, the system is ready to work. The distance of the new frame is calculated and compared with the initial depth map. If the value of depth is smaller than the initial value for the pixel, the position of the pixel is mesmerized. The distance filter can be used to filter the background object. Any feature block may be ignored beyond the range of interest. Only feature block within the range is marked. In our work, an ignored feature block is denoted with the negative sign and the blocks of interest are denoted with positive sign, as shown in Fig. 4. After the processing of the filter, blood fill algorithm is used to connect the neighbor block into one integrated block. For all blocks that are denoted as positive sign, a breadth first search algorithm with the neighbor rule is used to find all positive sign block and marked their positions as a group. Each group is represented as one object. The distance is also related to the group. In our experimental setup, we use 8-neighbor rule to recognize the neighbor candidate around one block. We consider that the foreign object can be any kind of shape, therefore, we believe that all eight directions should be considered as the extension of the foreign object.
+
+Size discrimination is done using a make-up table with the distance information and object size information. When a small object is too close to the camera, the size of the pixel block may appear as a big block. By using the make-up table we store the lower-bound level of the size which has high confidence. Fig. 3 shows the result obtained from the filter using the depth map when a foreign object (a vehicle) is walking in front of the camera. The number is depth of the block in meter. The blue rectangle denotes the position of the foreign object.
+
+\begin{center}\includegraphics[scale=0.4]{fig4.png}\end{center}
+\begin{center}Fig.3: The result after the blood fill algorithm when one foreign object (vehicle) is in front of the camera\end{center}
+
+\subsection{Adaptive depth calculation algorithm}
+The value of depth may not be a constant for one particular block if the camera is moving on the rugged ground. The initial depth map generated for the initial scene cannot be the reference for the following frames. For example, the vehicle is stand-by on an even ground. The depth map is generated based on the initial scene at this time. Once the vehicle is running on the down ramp, the distance between the camera and ground will be smaller than the initial scene since the camera is pointing down than the initial state. In this case, there will be a false alarm even if there is no foreign object in the scene. The reason is that there will be an area of quite small value of the depth when the camera is pointing down to the ground. The system with high rate of false alarm is not useful at all.
+
+An easy way is to solve this problem is to generate a depth map with the minimum depth value. Only when the value of the depth is smaller than the minimum value on the depth map, the foreign object can be determined with a higher level of confidence. The method to get the minimum depth map is straight forward. In order to get enough data to train the initial depth map, the vehicle with mounted cameras is set to run on the experiment site to collect the data. Then the depth map for each frame is calculated. The minimum value of depth for each block will be the value in the depth map. The advantage of this method is to reduce the false alarm sharply. However, this method will lose a certain number of foreign objects obviously since the comparison is based on the minimum depth map which is a very adverse situation.
+
+A better solution is to use information on the current frame appropriately. The method will not require the initial scene to generate the depth map. The area of the object shows in the frame can be part of scene if the object is in a certain distance from the vehicle or full of scene if the object is very close to the vehicle. Both cases can be handled using only the current frame without any help of the initial frame. If the area of the object takes the part of scene, the rest of the scene could be the clue to get the information of distance from the camera to the ground. If the area of the object takes full of scene, it is easy to handle using the depth map with the minimum depth as described above. The detail of the method is described as following.
+
+In order to make the distance calculation robust, the area of each frame is divided into sets of blocks instead of each pixel. The dimension of the block map is m*n. The denotations used are shown in Table~\ref{tab:adaptive}.
+
+\begin{table}[htb]\centering
+\caption{Correct Predictions with different boosting algorithm.}\label{tab:adaptive}
+\begin{tabular}{|c|c|c|c|} 
+    \hline 
+    The number of blocks in a row & $m$\\ 
+    \hline 
+    The number of blocks in a column & $n$\\ 
+    \hline
+    The denotation for each block & $b_{ij}$\\
+    \hline
+    The depth value of block $b_{ij}$ & $d_{ij}$\\
+    \hline
+    The maximum depth value in row $i$ & $m_i$\\
+    \hline
+    Threshold of depth different value in row $i$ & $t_i$\\
+    \hline
+\end{tabular}
+\end{table}
+
+For each block $b_{ij}$, the distance $d_{ij}$ will be calculated using the disparity. For each row, the maximum depth value is calculated. In order to eliminate the outlier value, the median value of the first three big numbers is picked as the maximum depth value $m_i$. If the depth value of any block in row $i$ is smaller than   $m_i-t_i$, the block will be marked as a dangerous points. Like the last section, a breadth first search algorithm will be used to group. The optimization objective is to find such a set of threshold $t_i$ for each row i such that the error rate of detecting is high and the false alarm is low.
+
+Another situation that the object is very close to the vehicle. The maximum value of the depth in a row is already the distance between the object and vehicle instead of the background. The adaptive depth map with the help of the minimum depth map can solve this corner case. Two criterions can be considered at the same time. Either one is satisfied, the block is marked as a dangerous points.
+
+\section{Experiment and discussion}
+We apply our method to the problem of foreign object detection in a real scenario. To demonstrate the feasibility, we trained multiple categories of object detector. In this experiment, we consider objects that often appear on the road that can cause a traffic accident. We apply our algorithm on four big object categories (pedestrian, bicycle, vehicle, and four-legged animal). Reference detector is also trained for each category to compare the performance with multiple categories object detector. A big variance of shape that cannot be handled by one classifier could be seen in our setup. Our goal is to make all objects in these categories distinct without knowing the sub-category in advanced. In the following subsection, after introducing the detail the data set, we apply our clustering algorithm in the data set and analysis the result. Next, we evaluate our method and compare the results of our method with previous methods.
+
+\subsection{Clustering performance}
+At the first stage, all positive samples are fed into the general Real boosting algorithm to select the feature that can be used to distinguish the positive samples against the negative samples. The threshold of Z value used in this experiment is set to 0.85. This value is obtained by cross-validation to make sure that the training is not overfitting (Z value is too big) or underfitting (Z value is too small). When the Z value achieves the threshold, this set of features is used for clustering algorithm. A small portion of features may come from the background when Z value is close to threshold as stated in section III A, therefore we set a tolerant ratio. The definition of this tolerant ratio is defined as the executing diameter divided by diameter of each cluster. In this experiment, the ratio is set to 1.2. Any sample locating in the area where may belong to not only one cluster will have multiple labels. After the clustering algorithm is computed, each cluster is trained by using modified vector boosting algorithm instead of general boosting algorithm to select discriminative features to construct strong classifier. These steps are performed iteratively until the training error is under the predefined level. At the end of training, we get 58 leaf nodes in the foreign object detection tree. In Fig. 4 we show parts of results in the node which contains the samples in each cluster.
+
+\begin{center}\includegraphics[scale=0.9]{fig5.png}\end{center}
+\begin{center}Fig. 4: The clustered horse category samples in the node of the foreign detection tree\end{center}
+
+Since the width-to-height ratio of objects is different, we propose a simple method to shrink the area that can pass all stages of the FOD classifier. The idea is based on that the discriminating features are mostly located around object outline and seldom located in background area. The operation is to squeeze the area from four directions in three steps. First, get four strips from boundary of the output box and get the number of discriminating features in the area. Second, squeeze the output box in the direction which has the least number of discriminating features. Third, calculate the total number of features that has been removed. If it is more than 10\% of the total features, then stop. If not, go to first step.
+
+\subsection{Classification algorithm comparison}
+In order to compare the performance of proposed method to the method composed of multiple classifiers, we build four classifiers for four objects, (i.e. pedestrian, bicycle, vehicle and four-leg animal) for each categories. We made each of the multiple classifiers learn using the samples coming from the single category belonging to the same training data set and evaluate on the same test data set. For each classifier, the training error is set to 5*10e-4 and training detection rate is set to 0.95 which is the same as the FOD. Next, we evaluate the performance of 4 separated classifiers. We calculate the number of missing and false positive is from four categories. Fig. 5 plots the ROC curves.
+
+\begin{center}\includegraphics[scale=0.4]{fig6.jpg}\end{center}
+\begin{center}Fig. 5: Quantitative result of FOD vs. multiple classifiers\end{center}
+
+From the result, we observe that our FOD method outperforms the multiple classifier method. One main reason is that we use soft clustering algorithm which is based on the discriminating features while multiple classifier method use pre-defined category information which is hard clustering algorithm based on the domain knowledge. In this experiment, we notice that the merit of soft clustering algorithm, which is allowed to be tolerant between similar categories. Another reason is that the extended vector boosting method makes use of the relation information of each feature among multiple classes which is totally ignored by the separated classifier method.
+
+\subsection{Multi-class classifier with single camera vs. distance map with two cameras}
+In this experiment, we use four data sets to test the correctness of the algorithm shown in Table 3. The data sets include two kinds of object, i.e. pedestrian and vehicle. For each data set, the \# frames means the number of frames in the video clips and the \# object means the times the object shows up in the video clips. We also control the moving direction of the object for the purpose of all corner cases. The foreign object is designed to move on the designated path. The object could move from the far site to the near site. The object could move from the near site to the far site. The object also could move from left to right with the same distance. The moving speed is from slow to normal. The pose of the objects can be changed with arbitrary shape.
+
+We compare our stereo-based algorithm based on the depth information to the previous work using the multi-classifier method based on the shape information. From the results, we observe that the detecting rate increased more than shape-based method. This can be contributed to the reason that the distance can be tolerated when the object is with shape that is not included in the model of the shape-based method. Besides that, the false alarm is also decreased than the shape-based method. The background may be clustered in most case, so the foreground and background may mix together to make the frame area much more like a target object. However, the distance is always not in the range. The area can be eliminated by the depth information.
+
+\begin{table}[htb]\centering
+\caption{Experiment result comparison between stereo-based and shape-based method.}\label{tab:experiment}
+\begin{tabular}{|p{3cm}|c|c|c|c|c|c|}
+%\multicolumn{2}{c}{Item} \\ \cmidrule(r){1-2}
+\hline
+\thead{\multirow{2}{*}{Datasets}}  & \multicolumn{3}{c}{Stereo-based} \vline& \multicolumn{3}{c}{Shape-based} \vline\\
+\cline{2-7}
+& D & M & FA & D & M & FA\\
+\hline
+\thead{Dataset1 \\(42 objects/116 frames)} & 40  & 2 & 0 & 39 & 3 & 2\\
+\hline
+\thead{Dataset2 \\(15 objects/34 frames)} & 14  & 1 & 0 & 13 & 2 & 0\\
+\hline
+\thead{Dataset3 \\(12 objects/56 frames)} & 11  & 1 & 0 & 10 & 2 & 0\\
+\hline
+\thead{Dataset4 \\(22 objects/60 frames)} & 21  & 1 & 1 & 21 & 1 & 2\\
+\hline
+\end{tabular}
+\end{table} 
+
+\section{Conclusion}
+We describe a method to learn a foreign object detector which can detect many categories objects simultaneously, without knowing the label information in each instance. We divide the positive sample space by unsupervised clustering algorithm with tolerance ratio with the features learned by our proposed extended vector boosting algorithm. The extended vector boosting algorithm considers the relation of multiple classes instead of individual classes. In the research on detection of any foreign objects with no pre-set shape, we use stereo cameras configuration to generate depth map. The goal of our research is to design a foreign object detection framework using a depth map to find block with certain area. Our fundamental approach is to use stereo matching algorithm to get the disparity information based on intensity images from stereo cameras and using the camera model to retrieve the distance information. From the result of our experiments, the proposed framework has a better performance with higher detection rate with lower false alarm. The processing speed is boosted significantly.
+
+\bibliographystyle{IEEEtran}
+\bibliography{IEEEabrv,mybib}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%% Reference
+%% Below is an example of bibliography that contains all entries within this document.
+%% You can also let BibTeX generate your bibliography by inserting the following two commands:
+%%
+%% \bibliographystyle{IEEEtran}
+%% \bibliography{<your_bibliography_file_1>,<your_bibliography_file_2>,...}
+%%
+%% Note that you need to make sure that LaTeX (BibTeX) can find IEEEtrans.bst in your system.
+%% If you are unsure about that, just place IEEEtrans.bst in the same directory where your LaTeX source files reside.
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Below thebibliography environment will be automatically created in a different file (your_file_name.bbl) 
+%%% if you use BibTeX and specify IEEEtrans.bst.
+
+
+
+
+\end{document}
